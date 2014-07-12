@@ -26,14 +26,16 @@ ComDispatch(this, disptable)
 	,obj.pointer  := obj_mem
 	,obj.this     := this
 	
-	return ComObjParameter(9, obj_mem)
+	return _ComObjParam(9, obj_mem)
 }
 
 _CreateIDispatchVTable(func)
 {
 	vtable_mem := _CoTaskMemAlloc(7 * A_PtrSize), var := "3112469"
-	Loop, Parse, var
-		idx := A_Index - 1, NumPut(RegisterCallback(func, "", A_LoopField, idx), vtable_mem + idx*A_PtrSize)
+	_var := A_AhkVersion < "2" ? "var" : var
+	Loop Parse, %_var%
+		idx := A_Index - 1
+		, NumPut(RegisterCallback(func, "", A_LoopField, idx), vtable_mem + idx*A_PtrSize)
 	return vtable_mem
 }
 
@@ -64,15 +66,16 @@ _1: ; IUnknown::AddRef
 	return this.refcount := this.refcount + 1
 
 _2: ; IUnknown::Release
-	if !(new := (this.refcount := this.refcount - 1))
+	if !(_new := (this.refcount := this.refcount - 1))
 	{
 		if func := this.dispids[this.methods.__Delete] && func.MinParams = 1
-			func.(this.this)
+			%func%(this.this)
+			; func.(this.this)
 		 _CoTaskMemFree(this_)
 		,this := ""
 		,ObjRelease(this_ptr)
 	}
-	return new
+	return _new
 
 _3: ; IDispatch::GetTypeInfoCount
 	NumPut(0, prm0+0, "UInt")
@@ -92,8 +95,8 @@ _5: ; IDispatch::GetIDsOfNames
 		 idx := A_Index - 1
 		,name := StrGet(NumGet(prm1 + idx*A_PtrSize), "UTF-16")
 		,dispid := this.methods[name]
-		if dispid =
-			 dispid := 0xFFFFFFFB ; DISPID_UNKNOWN: (DWORD)(-5)
+		if dispid = ""
+			dispid := 0xFFFFFFFB ; DISPID_UNKNOWN: (DWORD)(-5)
 			,status := 0x80020006 ; DISP_E_UNKNOWNNAME
 		NumPut(dispid, prm4 + idx*4, "UInt")
 	}
@@ -122,10 +125,10 @@ _6: ; IDispatch::Invoke
 	,NumPut(sizeof_VARIANT, SAhdr, 4, "UInt")
 	,NumPut(paramarray, SAhdr, 12+pad)
 	,NumPut(nparams, SAhdr, 12+pad+A_PtrSize, "UInt")
-	,params_safearray := ComObjParameter(0x200C, &SAhdr)
+	,params_safearray := _ComObjParam(0x200C, &SAhdr)
 	
 	; Copy the parameters to a regular AutoHotkey array
-	Loop, %nparams%
+	Loop, % nparams
 		params.Insert(a := params_safearray[idx := nparams - A_Index])
 	
 _call:
@@ -134,7 +137,7 @@ _call:
 	,ret      := ComObjValue(retvar.ref)
 	
 	; Call the function
-	try retvar[] := func.(this.this, params*)
+	try retvar[] := %func%(this.this, params*) ;// func.(this.this, params*)
 	catch e
 	{
 		; Clear caller-supplied VARIANT.
@@ -175,4 +178,10 @@ _CoTaskMemAlloc(size)
 _CoTaskMemFree(mem)
 {
 	DllCall("ole32\CoTaskMemAlloc", "ptr", mem)
+}
+;// For v1.1 and v2.0-a compatability
+_ComObjParam(args*) ;// VarType, Value [, Flags]
+{
+	static ComObjP := A_AhkVersion < "2" ? "ComObjParameter" : "ComObject"
+	return %ComObjP%(args*)
 }
