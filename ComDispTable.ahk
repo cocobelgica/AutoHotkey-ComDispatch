@@ -2,13 +2,13 @@
 ; File encoding:  UTF-8
 ; Author: fincs
 ;
-; ComTable: Creates a dispatch table for use with ComDispatch()
+; ComDispTable: Creates a dispatch table for use with ComDispatch()
 ;
 
 ComDispTable(methods)
 {
-	_methods := A_AhkVersion < "2" ? "methods" : methods
 	id2method := {}, method2id := {}
+	_methods := A_AhkVersion < "2" ? "methods" : methods
 	Loop Parse, %_methods%, `,
 	{
 		dispid := A_Index - 1

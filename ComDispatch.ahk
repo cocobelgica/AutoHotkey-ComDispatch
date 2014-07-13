@@ -157,10 +157,18 @@ _call:
 		}
 		return 0x80020009 ; DISP_E_EXCEPTION
 	}
-	
 	; Move the converted return value to the caller-supplied VARIANT. Also clear the ComVar.
 	Loop, % sizeof_VARIANT // 8
-		idx:=8*(A_Index-1), NumPut(NumGet(ret+idx, "Int64"), prm5+idx, "Int64"), NumPut(0, ret+idx, "Int64")
+	{
+		idx := 8*(A_Index-1)
+		/* try -> for v2.0-a
+		 * NumPut() throws an 'Invalid parameter #2' error if 'prm5' is 0.
+		 * This usually happens if user does not specify a variable to
+		 * store the return value to. prm5=pVarResult -> see: http://goo.gl/2vT600
+		 */
+		try NumPut(NumGet(ret+idx, "Int64"), prm5+idx, "Int64")
+		NumPut(0, ret+idx, "Int64")
+	}
 	
 	return 0
 }
